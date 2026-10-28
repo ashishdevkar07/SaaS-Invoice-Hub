@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, TABLE_NAME } from "../../../lib/dynamodb";
+import { db } from "../../../lib/dynamodb";
 import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import * as crypto from "crypto";
 
