@@ -2,9 +2,9 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
-const accessKeyId = process.env.ACCESS_KEY?.trim();
-const secretAccessKey = process.env.SECRET_ACCESS_KEY?.trim();
-const region = process.env.REGION?.trim() || "ap-southeast-2";
+const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
+const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY?.trim();
+const region = process.env.AWS_REGION?.trim() || "ap-southeast-2";
 
 if (!accessKeyId || !secretAccessKey) {
   throw new Error(
