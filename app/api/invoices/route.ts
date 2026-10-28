@@ -1,87 +1,104 @@
+
 import { NextResponse } from "next/server";
 import { db } from "../../lib/dynamodb";
-import { ScanCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
-import { randomUUID } from "crypto";
+import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 
-// GET: Fetch all invoices for a user
-export async function GET(request: Request) {
+const TABLE_NAME = "UserSettings";
+
+// GET: Fetch settings for a user
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const email = searchParams.get("email");
+
+  if (!email) {
+    return NextResponse.json(
+      { success: false, error: "Email required" },
+      { status: 400 }
+    );
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get("email");
-
-    if (!email) {
-      return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
-    }
-
     const result = await db.send(
-      new ScanCommand({
-        TableName: "Invoices",
-        FilterExpression: "email = :email",
-        ExpressionAttributeValues: { ":email": email },
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { email },
       })
     );
 
-    return NextResponse.json({ success: true, invoices: result.Items || [] });
-  } catch (error: any) {
-    console.error("API GET Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      settings: result.Item || {},
+    });
+  } catch (error: unknown) {
+    console.error("GET settings error:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Failed to load settings";
+
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Create a new invoice
-export async function POST(request: Request) {
+// POST: Save settings for a user
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const { email, clientName, amount, dueDate, status } = body;
+    const body = await req.json();
 
-    if (!email || !clientName || !amount || !dueDate) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    const {
+      email,
+      companyName,
+      companyAddress,
+      phone,
+      gstin,
+      bankName,
+      accountNumber,
+      ifscCode,
+      upiId,
+    } = body;
+
+    if (!email) {
+      return NextResponse.json(
+        { success: false, error: "Email required" },
+        { status: 400 }
+      );
     }
 
-    const id = randomUUID(); // Must be named 'id' to match your table's primary key schema
+    const item = {
+      email,
+      companyName,
+      companyAddress,
+      phone,
+      gstin,
+      bankName,
+      accountNumber,
+      ifscCode,
+      upiId,
+      updatedAt: new Date().toISOString(),
+    };
 
     await db.send(
       new PutCommand({
-        TableName: "Invoices",
-        Item: {
-          id,          // Changed from invoiceId to id
-          email,
-          clientName,
-          amount: Number(amount),
-          dueDate,
-          status: status || "Pending",
-          createdAt: new Date().toISOString(),
-        },
+        TableName: TABLE_NAME,
+        Item: item,
       })
     );
 
-    return NextResponse.json({ success: true, message: "Invoice created successfully" });
-  } catch (error: any) {
-    console.error("API POST Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
-}
+    return NextResponse.json({
+      success: true,
+      settings: item,
+    });
+  } catch (error: unknown) {
+    console.error("POST settings error:", error);
 
-// DELETE: Remove an invoice by id
-export async function DELETE(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id"); // Match parameter name
+    const message =
+      error instanceof Error ? error.message : "Failed to save settings";
 
-    if (!id) {
-      return NextResponse.json({ success: false, error: "Invoice ID is required" }, { status: 400 });
-    }
-
-    await db.send(
-      new DeleteCommand({
-        TableName: "Invoices",
-        Key: { id }, // Match primary key name
-      })
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
     );
-
-    return NextResponse.json({ success: true, message: "Invoice deleted successfully" });
-  } catch (error: any) {
-    console.error("API DELETE Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
